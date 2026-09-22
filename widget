@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Start a widget on the Windows desktop from inside WSL.
+#   ./widget              the work clock
+#   ./widget agenda       today's meetings
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+id="${1:-workclock}"
+if [ ! -f "$here/widgets/$id.ps1" ]; then
+    echo "no such widget: $id" >&2
+    echo "available:" >&2
+    for f in "$here"/widgets/*.ps1; do echo "  $(basename "$f" .ps1)" >&2; done
+    exit 1
+fi
+exec /mnt/c/WINDOWS/System32/wscript.exe "$(wslpath -w "$here/Widget.vbs")" "$id"

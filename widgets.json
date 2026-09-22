@@ -1,0 +1,6 @@
+[
+  { "id": "workclock", "name": "WorkClock", "description": "Worked time today against your daily target" },
+  { "id": "agenda",    "name": "Agenda",    "description": "Today's meetings from an ICS calendar feed" },
+  { "id": "todos",     "name": "Todos",     "description": "A checklist you type straight into the card" },
+  { "id": "pet",       "name": "Pet",       "description": "A small creature that sits there and reacts to things" }
+]
