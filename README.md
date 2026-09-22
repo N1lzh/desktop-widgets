@@ -1,4 +1,6 @@
-# Desktop widgets
+<img width="643" height="176" alt="logo-lockup-dark" src="https://github.com/user-attachments/assets/87520e10-62c1-45f8-8190-a73985b7b4cd" />
+
+# Desktop Widgets
 
 Tiny translucent cards that float on top of everything, have no window frame and
 no taskbar entry. You drag them where you like and forget them. They all look
