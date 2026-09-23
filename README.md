@@ -218,6 +218,11 @@ for the clock, `agenda.json` plus a cached `agenda.ics` for the meetings,
 `todos.json` for the list and `pet.json` for the creature. The Pet reads the
 other three to know what to react to.
 
+After every refresh the Agenda also writes `agenda-today.json`: today's
+meetings exactly as the card shows them (recurrences expanded, out of office
+dropped), with ISO start and end times. It is meant for other tools, like a
+terminal greeting in WSL, so they do not have to parse the ICS themselves.
+
 Set `WORKCLOCK_DEBUG=1` to get a log at `%TEMP%\workclock.log`.
 
 ## Adding another widget

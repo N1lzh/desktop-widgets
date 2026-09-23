@@ -37,8 +37,50 @@ $script:loading   = $false
 $script:job       = $null
 $script:day       = (Get-Date).Date
 
-$CachePath = Get-WidgetDataPath 'agenda.ics'
-$IcsModule = Join-Path $libDir 'Ics.psm1'
+$CachePath  = Get-WidgetDataPath 'agenda.ics'
+$ExportPath = Get-WidgetDataPath 'agenda-today.json'
+$IcsModule  = Join-Path $libDir 'Ics.psm1'
+
+# the meetings the card shows, in starting order
+function Get-VisibleEvents {
+    $evts = @($script:events | Where-Object { $_ })
+    # out of office is a blocker, not a meeting: a daily 16:00-23:30 one would
+    # own the countdown all afternoon and book 7:30h before the day has started.
+    # All-day leave stays - it is worth seeing and never counted as booked.
+    $evts = @($evts | Where-Object { $_.AllDay -or -not $_.Oof })
+    if (-not [bool]$script:S.showAllDay) { $evts = @($evts | Where-Object { -not $_.AllDay }) }
+    $evts
+}
+
+# today's meetings as JSON for other tools (e.g. a terminal greeting from WSL),
+# with the same rules as the card, so nobody has to parse the ICS again
+function Export-Agenda {
+    try {
+        $fmt  = 'yyyy-MM-ddTHH:mm:sszzz'
+        $data = [ordered]@{
+            date   = $script:day.ToString('yyyy-MM-dd')
+            loaded = $null -ne $script:events
+            synced = if ($script:lastSync) { $script:lastSync.ToString($fmt) } else { $null }
+            error  = $script:lastError
+            events = @(Get-VisibleEvents | ForEach-Object {
+                [ordered]@{
+                    start    = ([datetimeoffset]$_.Start).ToString($fmt)
+                    end      = ([datetimeoffset]$_.End).ToString($fmt)
+                    subject  = [string]$_.Subject
+                    location = [string]$_.Location
+                    allDay   = [bool]$_.AllDay
+                    busy     = [bool]$_.Busy
+                }
+            })
+        }
+        # write next to it and swap, so a reader never sees half a file
+        $tmp = "$ExportPath.tmp"
+        ConvertTo-Json -InputObject $data -Depth 4 | Set-Content -LiteralPath $tmp -Encoding UTF8
+        Move-Item -LiteralPath $tmp -Destination $ExportPath -Force
+    } catch {
+        Write-WidgetLog "export failed: $($_.Exception.Message)"
+    }
+}
 
 # --------------------------------------------------------------------------
 # fetching - off the UI thread, so a slow feed never freezes the widget
@@ -149,6 +191,7 @@ function Complete-Fetch {
         }
         Write-WidgetLog ("fetch done: {0} events, cache={1}, err={2}" -f @($res.Events).Count, $res.FromCache, $res.Error)
     }
+    Export-Agenda
     Update-Ui
 }
 
@@ -281,12 +324,7 @@ function Update-Ui {
     $ui   = $script:UI
     $now  = Get-Date
     $have = $null -ne $script:events
-    $evts = @($script:events | Where-Object { $_ })
-    # out of office is a blocker, not a meeting: a daily 16:00-23:30 one would
-    # own the countdown all afternoon and book 7:30h before the day has started.
-    # All-day leave stays - it is worth seeing and never counted as booked.
-    $evts = @($evts | Where-Object { $_.AllDay -or -not $_.Oof })
-    if (-not [bool]$script:S.showAllDay) { $evts = @($evts | Where-Object { -not $_.AllDay }) }
+    $evts = @(Get-VisibleEvents)
 
     $timed   = @($evts | Where-Object { -not $_.AllDay })
     $current = @($timed | Where-Object { $_.Start -le $now -and $_.End -gt $now })[0]
@@ -437,7 +475,7 @@ $UI.MiInterval.Add_Click({
 $UI.MiAllDay.IsChecked = [bool]$script:S.showAllDay
 $UI.MiAllDay.Add_Click({
     $script:S.showAllDay = [bool]$script:UI.MiAllDay.IsChecked
-    Save-WidgetState; Update-Ui
+    Save-WidgetState; Export-Agenda; Update-Ui
 })
 
 $UI.BtnQuit.Add_Click({ Save-WidgetState; $win.Close() })
